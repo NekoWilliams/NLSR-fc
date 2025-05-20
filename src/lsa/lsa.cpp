@@ -20,6 +20,7 @@
  */
 
 #include "lsa.hpp"
+#include "serviceinfo-lsa.hpp"
 #include "tlv-nlsr.hpp"
 
 namespace nlsr {
@@ -40,61 +41,57 @@ Lsa::Lsa(const Lsa& lsa)
 }
 
 template<ndn::encoding::Tag TAG>
-size_t
-Lsa::wireEncode(ndn::EncodingImpl<TAG>& encoder) const
-{
-  size_t totalLength = 0;
+size_t Lsa::wireEncode(ndn::EncodingImpl<TAG>& encoder) const {
+    size_t totalLength = 0;
 
-  totalLength += prependStringBlock(encoder,
-                                    nlsr::tlv::ExpirationTime,
-                                    ndn::time::toString(m_expirationTimePoint));
+    if (getType() == Type::SERVICE_INFO) {
+        auto serviceInfoLsa = dynamic_cast<const ServiceInfoLsa*>(this);
+        if (serviceInfoLsa) {
+            totalLength += serviceInfoLsa->wireEncode(encoder);
+        }
+    } 
+    else {
+        totalLength += m_originRouter.wireEncode(encoder);
+        totalLength += prependNonNegativeIntegerBlock(encoder, nlsr::tlv::SequenceNumber, m_seqNo);
+    }
 
-  totalLength += prependNonNegativeIntegerBlock(encoder, nlsr::tlv::SequenceNumber, m_seqNo);
+    totalLength += encoder.prependVarNumber(totalLength);
+    totalLength += encoder.prependVarNumber(nlsr::tlv::Lsa);
 
-  totalLength += m_originRouter.wireEncode(encoder);
-
-  totalLength += encoder.prependVarNumber(totalLength);
-  totalLength += encoder.prependVarNumber(nlsr::tlv::Lsa);
-
-  return totalLength;
+    return totalLength;
 }
 
 NDN_CXX_DEFINE_WIRE_ENCODE_INSTANTIATIONS(Lsa);
 
-void
-Lsa::wireDecode(const ndn::Block& wire)
-{
-  m_originRouter.clear();
-  m_seqNo = 0;
+void Lsa::wireDecode(const ndn::Block& wire) {
+    m_originRouter.clear();
+    m_seqNo = 0;
 
-  ndn::Block baseWire = wire;
-  baseWire.parse();
+    ndn::Block baseWire = wire;
+    baseWire.parse();
 
-  auto val = baseWire.elements_begin();
+    auto val = baseWire.elements_begin();
 
-  if (val != baseWire.elements_end() && val->type() == ndn::tlv::Name) {
-    m_originRouter.wireDecode(*val);
-  }
-  else {
-    NDN_THROW(Error("OriginRouter: Missing required Name field"));
-  }
+    if (val != baseWire.elements_end() && val->type() == ndn::tlv::Name) {
+        m_originRouter.wireDecode(*val);
+    } else {
+        NDN_THROW(Error("OriginRouter: Missing required Name field"));
+    }
 
-  ++val;
-
-  if (val != baseWire.elements_end() && val->type() == nlsr::tlv::SequenceNumber) {
-    m_seqNo = ndn::readNonNegativeInteger(*val);
     ++val;
-  }
-  else {
-    NDN_THROW(Error("Missing required SequenceNumber field"));
-  }
+    if (val != baseWire.elements_end() && val->type() == nlsr::tlv::SequenceNumber) {
+        m_seqNo = ndn::readNonNegativeInteger(*val);
+        ++val;
+    } else {
+        NDN_THROW(Error("Missing required SequenceNumber field"));
+    }
 
-  if (val != baseWire.elements_end() && val->type() == nlsr::tlv::ExpirationTime) {
-    m_expirationTimePoint = ndn::time::fromString(readString(*val));
-  }
-  else {
-    NDN_THROW(Error("Missing required ExpirationTime field"));
-  }
+    if (getType() == Type::SERVICE_INFO) {
+        auto serviceInfoLsa = dynamic_cast<ServiceInfoLsa*>(this);
+        if (serviceInfoLsa) {
+            serviceInfoLsa->wireDecode(wire);
+        }
+    }
 }
 
 std::ostream&

@@ -57,7 +57,8 @@ public:
     ADJACENCY,
     COORDINATE,
     NAME,
-    BASE
+    BASE,
+    SERVICE_INFO //new LSA type
   };
 
 protected:
