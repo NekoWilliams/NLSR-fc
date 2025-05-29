@@ -10,6 +10,8 @@
 > For more extensive documentation, visit the [NLSR homepage](https://docs.named-data.net/NLSR/current/).
 
 ## Overview
+This repository will define and address a new LSA to integrate the function selection mechanism of service function chaining into the existing NLSR.
+
 
 NLSR is a routing protocol for Named Data Networking (NDN) that populates the Routing Information
 Base (RIB) of an NDN router, such as [NFD](https://github.com/named-data/NFD). NLSR continues to
